@@ -115,7 +115,7 @@ instruction
                     /*jslint evil: true*/
                     eval(document.querySelector('#inputTextareaEval1').value);
                 } catch (errorCaught) {
-                    console.error(errorCaught.stack);
+                    console.error(errorCaught);
                 }
             }
         };
@@ -291,14 +291,15 @@ utility2-comment -->\n\
         local.assetsDict['/assets.example.js'] =
             local.assetsDict['/assets.example.js'] ||
             local.fs.readFileSync(__filename, 'utf8');
+        // bug-workaround - long $npm_package_buildCustomOrg
+        /* jslint-ignore-begin */
         local.assetsDict['/assets.npmdoc_http_server.rollup.js'] =
             local.assetsDict['/assets.npmdoc_http_server.rollup.js'] ||
             local.fs.readFileSync(
-                // buildCustomOrg-hack
-                local.npmdoc_http_server.__dirname +
-                    '/lib.npmdoc_http_server.js',
+                local.npmdoc_http_server.__dirname + '/lib.npmdoc_http_server.js',
                 'utf8'
             ).replace((/^#!/), '//');
+        /* jslint-ignore-end */
         local.assetsDict['/favicon.ico'] = local.assetsDict['/favicon.ico'] || '';
         // if $npm_config_timeout_exit exists,
         // then exit this process after $npm_config_timeout_exit ms

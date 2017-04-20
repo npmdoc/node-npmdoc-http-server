@@ -94,6 +94,12 @@
 
         </li>
 
+        <li>
+
+            <span class="apidocSignatureSpan">object <span class="apidocSignatureSpan">http-server.</span>http_server</span>
+
+        </li>
+
     </ol></li>
 
     <li class="apidocModuleLi"><a href="#apidoc.module.http-server.HTTPServer">module http-server.HTTPServer</a><ol>
@@ -125,6 +131,37 @@
             <a class="apidocElementLiA" href="#apidoc.element.http-server.HTTPServer.prototype.listen">
             function <span class="apidocSignatureSpan">http-server.HTTPServer.prototype.</span>listen
             <span class="apidocSignatureSpan">()</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.http-server.http_server">module http-server.http_server</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.http-server.http_server.HTTPServer">
+            function <span class="apidocSignatureSpan">http-server.http_server.</span>HTTPServer
+            <span class="apidocSignatureSpan">(options)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.http-server.http_server.HttpServer">
+            function <span class="apidocSignatureSpan">http-server.http_server.</span>HttpServer
+            <span class="apidocSignatureSpan">(options)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.http-server.http_server.createServer">
+            function <span class="apidocSignatureSpan">http-server.http_server.</span>createServer
+            <span class="apidocSignatureSpan">(options)</span>
             </a>
 
         </li>
@@ -379,8 +416,26 @@
     <li>description and source-code<pre class="apidocCodePre">createServer = function (options) {
   return new HttpServer(options);
 }</pre></li>
-    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+    }
+  };
+
+  if (options.https) {
+    serverOptions.https = options.https;
+  }
+
+  this.server = union.<span class="apidocCodeKeywordSpan">createServer</span>(serverOptions);
+}
+
+HttpServer.prototype.listen = function () {
+  this.server.listen.apply(this.server, arguments);
+};
+
+HttpServer.prototype.close = function () {
+...</pre></li>
     </ul>
+
+
 
 
 
@@ -522,7 +577,17 @@
     <li>description and source-code<pre class="apidocCodePre">close = function () {
   return this.server.close();
 }</pre></li>
-    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+}
+
+HttpServer.prototype.listen = function () {
+  this.server.listen.apply(this.server, arguments);
+};
+
+HttpServer.prototype.close = function () {
+  return this.server.<span class="apidocCodeKeywordSpan">close</span>();
+};
+...</pre></li>
     </ul>
 
 
@@ -538,6 +603,274 @@
   this.server.listen.apply(this.server, arguments);
 }</pre></li>
     <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.http-server.http_server" id="apidoc.module.http-server.http_server">module http-server.http_server</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.http-server.http_server.HTTPServer" id="apidoc.element.http-server.http_server.HTTPServer">
+        function <span class="apidocSignatureSpan">http-server.http_server.</span>HTTPServer
+        <span class="apidocSignatureSpan">(options)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function HttpServer(options) {
+  options = options || {};
+
+  if (options.root) {
+    this.root = options.root;
+  }
+  else {
+    try {
+      fs.lstatSync(&#x27;./public&#x27;);
+      this.root = &#x27;./public&#x27;;
+    }
+    catch (err) {
+      this.root = &#x27;./&#x27;;
+    }
+  }
+
+  this.headers = options.headers || {};
+
+  this.cache = options.cache === undefined ? 3600 : options.cache; // in seconds.
+  this.showDir = options.showDir !== &#x27;false&#x27;;
+  this.autoIndex = options.autoIndex !== &#x27;false&#x27;;
+  this.contentType = options.contentType || &#x27;application/octet-stream&#x27;;
+
+  if (options.ext) {
+    this.ext = options.ext === true
+      ? &#x27;html&#x27;
+      : options.ext;
+  }
+
+  var before = options.before ? options.before.slice() : [];
+
+  before.push(function (req, res) {
+    if (options.logFn) {
+      options.logFn(req, res);
+    }
+
+    res.emit(&#x27;next&#x27;);
+  });
+
+  if (options.cors) {
+    this.headers[&#x27;Access-Control-Allow-Origin&#x27;] = &#x27;*&#x27;;
+    this.headers[&#x27;Access-Control-Allow-Headers&#x27;] = &#x27;Origin, X-Requested-With, Content-Type, Accept, Range&#x27;;
+    if (options.corsHeaders) {
+      options.corsHeaders.split(/\s*,\s*/)
+          .forEach(function (h) { this.headers[&#x27;Access-Control-Allow-Headers&#x27;] += &#x27;, &#x27; + h; }, this);
+    }
+    before.push(corser.create(options.corsHeaders ? {
+      requestHeaders: this.headers[&#x27;Access-Control-Allow-Headers&#x27;].split(/\s*,\s*/)
+    } : null));
+  }
+
+  if (options.robots) {
+    before.push(function (req, res) {
+      if (req.url === &#x27;/robots.txt&#x27;) {
+        res.setHeader(&#x27;Content-Type&#x27;, &#x27;text/plain&#x27;);
+        var robots = options.robots === true
+          ? &#x27;User-agent: *\nDisallow: /&#x27;
+          : options.robots.replace(/\\n/, &#x27;\n&#x27;);
+
+        return res.end(robots);
+      }
+
+      res.emit(&#x27;next&#x27;);
+    });
+  }
+
+  before.push(ecstatic({
+    root: this.root,
+    cache: this.cache,
+    showDir: this.showDir,
+    autoIndex: this.autoIndex,
+    defaultExt: this.ext,
+    contentType: this.contentType,
+    handleError: typeof options.proxy !== &#x27;string&#x27;
+  }));
+
+  if (typeof options.proxy === &#x27;string&#x27;) {
+    var proxy = httpProxy.createProxyServer({});
+    before.push(function (req, res) {
+      proxy.web(req, res, {
+        target: options.proxy,
+        changeOrigin: true
+      });
+    });
+  }
+
+  var serverOptions = {
+    before: before,
+    headers: this.headers,
+    onError: function (err, req, res) {
+      if (options.logFn) {
+        options.logFn(req, res, err);
+      }
+
+      res.end();
+    }
+  };
+
+  if (options.https) {
+    serverOptions.https = options.https;
+  }
+
+  this.server = union.createServer(serverOptions);
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.http-server.http_server.HttpServer" id="apidoc.element.http-server.http_server.HttpServer">
+        function <span class="apidocSignatureSpan">http-server.http_server.</span>HttpServer
+        <span class="apidocSignatureSpan">(options)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function HttpServer(options) {
+  options = options || {};
+
+  if (options.root) {
+    this.root = options.root;
+  }
+  else {
+    try {
+      fs.lstatSync(&#x27;./public&#x27;);
+      this.root = &#x27;./public&#x27;;
+    }
+    catch (err) {
+      this.root = &#x27;./&#x27;;
+    }
+  }
+
+  this.headers = options.headers || {};
+
+  this.cache = options.cache === undefined ? 3600 : options.cache; // in seconds.
+  this.showDir = options.showDir !== &#x27;false&#x27;;
+  this.autoIndex = options.autoIndex !== &#x27;false&#x27;;
+  this.contentType = options.contentType || &#x27;application/octet-stream&#x27;;
+
+  if (options.ext) {
+    this.ext = options.ext === true
+      ? &#x27;html&#x27;
+      : options.ext;
+  }
+
+  var before = options.before ? options.before.slice() : [];
+
+  before.push(function (req, res) {
+    if (options.logFn) {
+      options.logFn(req, res);
+    }
+
+    res.emit(&#x27;next&#x27;);
+  });
+
+  if (options.cors) {
+    this.headers[&#x27;Access-Control-Allow-Origin&#x27;] = &#x27;*&#x27;;
+    this.headers[&#x27;Access-Control-Allow-Headers&#x27;] = &#x27;Origin, X-Requested-With, Content-Type, Accept, Range&#x27;;
+    if (options.corsHeaders) {
+      options.corsHeaders.split(/\s*,\s*/)
+          .forEach(function (h) { this.headers[&#x27;Access-Control-Allow-Headers&#x27;] += &#x27;, &#x27; + h; }, this);
+    }
+    before.push(corser.create(options.corsHeaders ? {
+      requestHeaders: this.headers[&#x27;Access-Control-Allow-Headers&#x27;].split(/\s*,\s*/)
+    } : null));
+  }
+
+  if (options.robots) {
+    before.push(function (req, res) {
+      if (req.url === &#x27;/robots.txt&#x27;) {
+        res.setHeader(&#x27;Content-Type&#x27;, &#x27;text/plain&#x27;);
+        var robots = options.robots === true
+          ? &#x27;User-agent: *\nDisallow: /&#x27;
+          : options.robots.replace(/\\n/, &#x27;\n&#x27;);
+
+        return res.end(robots);
+      }
+
+      res.emit(&#x27;next&#x27;);
+    });
+  }
+
+  before.push(ecstatic({
+    root: this.root,
+    cache: this.cache,
+    showDir: this.showDir,
+    autoIndex: this.autoIndex,
+    defaultExt: this.ext,
+    contentType: this.contentType,
+    handleError: typeof options.proxy !== &#x27;string&#x27;
+  }));
+
+  if (typeof options.proxy === &#x27;string&#x27;) {
+    var proxy = httpProxy.createProxyServer({});
+    before.push(function (req, res) {
+      proxy.web(req, res, {
+        target: options.proxy,
+        changeOrigin: true
+      });
+    });
+  }
+
+  var serverOptions = {
+    before: before,
+    headers: this.headers,
+    onError: function (err, req, res) {
+      if (options.logFn) {
+        options.logFn(req, res, err);
+      }
+
+      res.end();
+    }
+  };
+
+  if (options.https) {
+    serverOptions.https = options.https;
+  }
+
+  this.server = union.createServer(serverOptions);
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.http-server.http_server.createServer" id="apidoc.element.http-server.http_server.createServer">
+        function <span class="apidocSignatureSpan">http-server.http_server.</span>createServer
+        <span class="apidocSignatureSpan">(options)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">createServer = function (options) {
+  return new HttpServer(options);
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+    }
+  };
+
+  if (options.https) {
+    serverOptions.https = options.https;
+  }
+
+  this.server = union.<span class="apidocCodeKeywordSpan">createServer</span>(serverOptions);
+}
+
+HttpServer.prototype.listen = function () {
+  this.server.listen.apply(this.server, arguments);
+};
+
+HttpServer.prototype.close = function () {
+...</pre></li>
     </ul>
 
 
